@@ -1,17 +1,14 @@
 const Machinery = require('../models/machineryModel');
 const Construction = require('../models/constructionModel');
 const Article = require('../models/articleModel');
-const Question = require('../models/questionModel');
 const ApiError = require('../error/index');
 
 class dataController {
   async getMachinery(req, res, next) {
     try {
-      console.log("req.query", req.query);
       const machinery  = await Machinery.find({});
       res.send([...machinery]);
     } catch (err) {
-      console.log("err", err);
       next(ApiError.internal(err));
     }
   }
@@ -62,10 +59,46 @@ class dataController {
     }
   }
 
-  async getArticles(req, res) {
+  async getConstructionsIds(req, res) {
+    try {
+      const constracts  = await Construction.find();
+      if (!constracts) {
+        return res.status(200).json({ message: "No constracts found" })
+      }
+
+      const IDS = constracts.reduce((accum, next) => [...accum, next.id], [])
+      res.send({ items: IDS })
+    } catch (error) {
+      next(ApiError.internal(err));
+    }
+  }
+
+  async getArticlesIds(req, res) {
     try {
       const articles  = await Article.find();
-      res.send(articles);
+      if (!articles) {
+        return res.status(200).json({ message: "No articles found" })
+      }
+
+      const IDS = articles.reduce((accum, next) => [...accum, next.id], [])
+      res.send({ items: IDS })
+    } catch (error) {
+      next(ApiError.internal(err));
+    }
+  }
+
+  async getArticles(req, res) {
+    try {
+      const itemsInChunk = 6
+
+      const articles  = await Article.find();
+      if (!req.query.chunk) {
+        return res.send({ items: articles });
+      }
+      const currPortion = articles.filter(a => a.id <= Number(req.query.chunk) * itemsInChunk )
+      const hasMore = articles.length > itemsInChunk * Number(req.query.chunk)
+
+      res.send({ items: currPortion, hasMore });
     } catch (err) {
       next(ApiError.internal(err));
     }
@@ -79,28 +112,6 @@ class dataController {
       next(ApiError.internal(err));
     }
   }
-  async makeRequest(req, res) {
-    try {
-      const { id, name, email, phone, question, date } = req.body;
-      const askedQuestion = new Question({
-        id,
-        name,
-        email,
-        phone,
-        question,
-        date
-      })
-      askedQuestion.save((err) => {
-        if (err) {
-          next(ApiError.internal(err));
-        }
-        return res.status(200).json({ success: true });
-      })
-    } catch (err) {
-      next(ApiError.internal(err));
-    }
-  }
-
 }
 
 module.exports = new dataController();

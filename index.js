@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dataRouter = require('./routes/dataRouter');
+const userRouter = require("./routes/user")
 const errorHandle = require("./middleware/error-handling")
 require('dotenv/config');
 
@@ -12,6 +13,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/api', dataRouter);
+app.use('/api', userRouter);
 app.use(errorHandle)
 
 const start = async () => {
