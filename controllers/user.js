@@ -16,7 +16,7 @@ class UserRouter {
       })
       askedQuestion.save((err) => {
         if (err) {
-          next(ApiError.internal(err));
+          return next(ApiError.internal(err));
         }
         return res.status(200).json({ success: true });
       })
@@ -28,7 +28,7 @@ class UserRouter {
   async processOrder(req, res, next) {
     try {
       if(!req.body.id) {
-        next(ApiError.BadRequest("Id must be provided"))
+        return next(ApiError.BadRequest("Id must be provided"))
       }
       const request = new Request({ 
         machineryId: req.body.id,

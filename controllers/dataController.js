@@ -6,8 +6,17 @@ const ApiError = require('../error/index');
 class dataController {
   async getMachinery(req, res, next) {
     try {
+      const itemsPerChunk = 10
       const machinery  = await Machinery.find({});
-      res.send([...machinery]);
+
+      if (!req.query.chunk) {
+        return res.send({ items: machinery, total: machinery.length });
+      }
+      const low = (Number(req.query.chunk) - 1) * itemsPerChunk
+      const high = Number(req.query.chunk) * itemsPerChunk
+      const currPortion = machinery.filter(a => a.id > low && a.id <= high )
+
+      return res.send({ items: currPortion, total: machinery.length, chunk: Number(req.query.chunk) });
     } catch (err) {
       next(ApiError.internal(err));
     }
