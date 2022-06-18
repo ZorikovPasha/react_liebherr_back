@@ -1,17 +1,77 @@
 const Machinery = require('../models/machineryModel');
 const Construction = require('../models/constructionModel');
 const Article = require('../models/articleModel');
-const Question = require('../models/questionModel');
 const ApiError = require('../error/index');
+
+function isNumeric(str) {
+  return !isNaN(str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
+         !isNaN(parseFloat(str)) // ...and ensure strings of whitespace fail
+}
 
 class dataController {
   async getMachinery(req, res, next) {
     try {
-      console.log("req.query", req.query);
-      const machinery  = await Machinery.find({});
-      res.send([...machinery]);
+      const itemsPerChunk = 10
+
+      if (!req.query.chunk) {
+        const machinery  = await Machinery.find({});
+        return res.send({ items: machinery, total: machinery.length });
+      } else if (req.query.chunk && Object.keys(req.query).length === 1) {
+        const machinery  = await Machinery.find({});
+  
+        const low = (Number(req.query.chunk) - 1) * itemsPerChunk
+        const high = Number(req.query.chunk) * itemsPerChunk
+        const currPortion = machinery.filter(a => a.id > low && a.id <= high )
+  
+        return res.send({ items: currPortion, total: machinery.length, chunk: Number(req.query.chunk) });
+      } else {
+        let machinery;
+
+        const filterCriteria = Object.keys(req.query)?.reduce((accum, feat) => {
+          if (!feat.includes("_")) {
+            if (feat === "chunk" || feat === "sort") {
+              return accum
+            }
+            else if (isNumeric(Number(req.query[feat]))) {
+              return {
+                ...accum,
+                [`features.${feat}.value`]: Number(req.query[feat])
+              }
+            } else {
+              return {
+                ...accum,
+                [`features.${feat}.value`]: req.query[feat]
+              } 
+            }
+          } else {
+            const characteristic = feat.split("_")[0]
+            if (!accum[`features.${characteristic}.value`]) {
+              accum[`features.${characteristic}.value`] = {}
+            }
+            feat.split("_")[1] === "from"
+              ? accum[`features.${characteristic}.value`].$gte = Number(req.query[feat])
+              : accum[`features.${characteristic}.value`].$lte = Number(req.query[feat]) // значит to
+            return accum
+          }
+        }, {})
+
+        console.log(filterCriteria);
+        if (req.query.sort) {
+          machinery = await Machinery.find(filterCriteria).sort({ [req.query.sort]: 1 });
+        } else {
+          machinery = await Machinery.find(filterCriteria)
+        }
+
+        if (!machinery?.length) {
+          return res.send({ items: [], total: 0, chunk: Number(req.query.chunk) });
+        }
+
+        const low = (Number(req.query.chunk) - 1) * itemsPerChunk
+        const high = Number(req.query.chunk) * itemsPerChunk
+        const currPortion = machinery.filter((_, idx) => idx >= low && idx < high )
+        return res.send({ items: currPortion, total: machinery.length, chunk: Number(req.query.chunk) });
+      }
     } catch (err) {
-      console.log("err", err);
       next(ApiError.internal(err));
     }
   }
@@ -62,10 +122,46 @@ class dataController {
     }
   }
 
-  async getArticles(req, res) {
+  async getConstructionsIds(req, res) {
+    try {
+      const constracts  = await Construction.find();
+      if (!constracts) {
+        return res.status(200).json({ message: "No constracts found" })
+      }
+
+      const IDS = constracts.reduce((accum, next) => [...accum, next.id], [])
+      res.send({ items: IDS })
+    } catch (error) {
+      next(ApiError.internal(err));
+    }
+  }
+
+  async getArticlesIds(req, res) {
     try {
       const articles  = await Article.find();
-      res.send(articles);
+      if (!articles) {
+        return res.status(200).json({ message: "No articles found" })
+      }
+
+      const IDS = articles.reduce((accum, next) => [...accum, next.id], [])
+      res.send({ items: IDS })
+    } catch (error) {
+      next(ApiError.internal(err));
+    }
+  }
+
+  async getArticles(req, res) {
+    try {
+      const itemsInChunk = 6
+
+      const articles  = await Article.find();
+      if (!req.query.chunk) {
+        return res.send({ items: articles });
+      }
+      const currPortion = articles.filter(a => a.id <= Number(req.query.chunk) * itemsInChunk )
+      const hasMore = articles.length > itemsInChunk * Number(req.query.chunk)
+
+      res.send({ items: currPortion, hasMore });
     } catch (err) {
       next(ApiError.internal(err));
     }
@@ -79,28 +175,6 @@ class dataController {
       next(ApiError.internal(err));
     }
   }
-  async makeRequest(req, res) {
-    try {
-      const { id, name, email, phone, question, date } = req.body;
-      const askedQuestion = new Question({
-        id,
-        name,
-        email,
-        phone,
-        question,
-        date
-      })
-      askedQuestion.save((err) => {
-        if (err) {
-          next(ApiError.internal(err));
-        }
-        return res.status(200).json({ success: true });
-      })
-    } catch (err) {
-      next(ApiError.internal(err));
-    }
-  }
-
 }
 
 module.exports = new dataController();

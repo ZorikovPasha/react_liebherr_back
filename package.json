@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "serve": "nodemon server/index"
+    "develop": "nodemon server/index"
   },
   "dependencies": {
     "bcrypt": "^5.0.1",
