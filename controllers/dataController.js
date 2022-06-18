@@ -3,20 +3,74 @@ const Construction = require('../models/constructionModel');
 const Article = require('../models/articleModel');
 const ApiError = require('../error/index');
 
+function isNumeric(str) {
+  return !isNaN(str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
+         !isNaN(parseFloat(str)) // ...and ensure strings of whitespace fail
+}
+
 class dataController {
   async getMachinery(req, res, next) {
     try {
       const itemsPerChunk = 10
-      const machinery  = await Machinery.find({});
 
       if (!req.query.chunk) {
+        const machinery  = await Machinery.find({});
         return res.send({ items: machinery, total: machinery.length });
-      }
-      const low = (Number(req.query.chunk) - 1) * itemsPerChunk
-      const high = Number(req.query.chunk) * itemsPerChunk
-      const currPortion = machinery.filter(a => a.id > low && a.id <= high )
+      } else if (req.query.chunk && Object.keys(req.query).length === 1) {
+        const machinery  = await Machinery.find({});
+  
+        const low = (Number(req.query.chunk) - 1) * itemsPerChunk
+        const high = Number(req.query.chunk) * itemsPerChunk
+        const currPortion = machinery.filter(a => a.id > low && a.id <= high )
+  
+        return res.send({ items: currPortion, total: machinery.length, chunk: Number(req.query.chunk) });
+      } else {
+        let machinery;
 
-      return res.send({ items: currPortion, total: machinery.length, chunk: Number(req.query.chunk) });
+        const filterCriteria = Object.keys(req.query)?.reduce((accum, feat) => {
+          if (!feat.includes("_")) {
+            if (feat === "chunk" || feat === "sort") {
+              return accum
+            }
+            else if (isNumeric(Number(req.query[feat]))) {
+              return {
+                ...accum,
+                [`features.${feat}.value`]: Number(req.query[feat])
+              }
+            } else {
+              return {
+                ...accum,
+                [`features.${feat}.value`]: req.query[feat]
+              } 
+            }
+          } else {
+            const characteristic = feat.split("_")[0]
+            if (!accum[`features.${characteristic}.value`]) {
+              accum[`features.${characteristic}.value`] = {}
+            }
+            feat.split("_")[1] === "from"
+              ? accum[`features.${characteristic}.value`].$gte = Number(req.query[feat])
+              : accum[`features.${characteristic}.value`].$lte = Number(req.query[feat]) // значит to
+            return accum
+          }
+        }, {})
+
+        console.log(filterCriteria);
+        if (req.query.sort) {
+          machinery = await Machinery.find(filterCriteria).sort({ [req.query.sort]: 1 });
+        } else {
+          machinery = await Machinery.find(filterCriteria)
+        }
+
+        if (!machinery?.length) {
+          return res.send({ items: [], total: 0, chunk: Number(req.query.chunk) });
+        }
+
+        const low = (Number(req.query.chunk) - 1) * itemsPerChunk
+        const high = Number(req.query.chunk) * itemsPerChunk
+        const currPortion = machinery.filter((_, idx) => idx >= low && idx < high )
+        return res.send({ items: currPortion, total: machinery.length, chunk: Number(req.query.chunk) });
+      }
     } catch (err) {
       next(ApiError.internal(err));
     }
