@@ -55,7 +55,6 @@ class dataController {
           }
         }, {})
 
-        console.log(filterCriteria);
         if (req.query.sort) {
           machinery = await Machinery.find(filterCriteria).sort({ [req.query.sort]: 1 });
         } else {
