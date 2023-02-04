@@ -9,8 +9,7 @@ const errorHandle = require("./middleware/error-handling")
 const PORT = process.env.PORT ?? 5000;
 
 const app = express();
-app.use(cors({ origin : "https://nextliebherr.netlify.app/" }));
-app.use(cors())
+app.use(cors({ origin : process.env === "development" ? "http://localhost:3000" : "https://nextliebherr.netlify.app/" }));
 app.use(express.json());
 app.use('/api', dataRouter);
 app.use('/api', userRouter);
@@ -18,16 +17,16 @@ app.use(errorHandle)
 
 const start = async () => {
   try {
-    await mongoose.connect(process.env.DB_CONNECTION, { useNewUrlParser: true },
+    await mongoose.connect(
+      process.env.DB_CONNECTION, 
+      { useNewUrlParser: true }, 
       () => console.log('connected to database')
     )
 
-    app.listen(PORT, () => {
-      console.log('server has been started on port ' + PORT);
-    });
-
+    app.listen(PORT, () => console.log('server has been started on port ' + PORT));
   } catch(e) {
     console.log(e);
   }
 };
+
 start();
