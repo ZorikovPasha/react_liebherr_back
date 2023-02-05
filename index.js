@@ -9,8 +9,8 @@ const errorHandle = require("./middleware/error-handling")
 const PORT = process.env.PORT ?? 5000;
 
 const app = express();
-app.use(cors({ origin : process.env === "development" ? "http://localhost:3000" : "https://nextliebherr.netlify.app/" }));
 app.use(express.json());
+app.use(cors({ origin : process.env.NODE_ENV === "development" ? "http://localhost:3000" : "https://nextliebherr.netlify.app/" }));
 app.use('/api', dataRouter);
 app.use('/api', userRouter);
 app.use(errorHandle)
